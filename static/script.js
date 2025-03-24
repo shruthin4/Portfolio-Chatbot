@@ -57,12 +57,18 @@ function sendMessage(userInput = null) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
     setTimeout(() => {
+        // Get the current domain dynamically
+        const currentDomain = window.location.origin;
+        // Use relative URL that works everywhere
         fetch("/chat", { 
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message: userInput }),
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log("Response status:", response.status, response.statusText);
+            return response.json();
+        })
         .then(data => {
             chatMessages.removeChild(botTypingElement);
             
@@ -100,7 +106,7 @@ function sendMessage(userInput = null) {
             
             var messageContent = document.createElement("div");
             messageContent.classList.add("message-content");
-            messageContent.textContent = "Sorry, I couldn't process your request. Please try again later.";
+            messageContent.innerHTML = "<p>I'm having trouble connecting right now. Please feel free to email me at <a href='mailto:shruthinreddysainapuram@gmail.com'>shruthinreddysainapuram@gmail.com</a> with any questions!</p>";
             errorMessageElement.appendChild(messageContent);
             
             chatMessages.appendChild(errorMessageElement);
@@ -159,6 +165,28 @@ function processMessageContent(content) {
     return result;
 }
 
+// Add this function to test API connection when the page loads
+function testChatEndpoint() {
+    console.log("Testing chat endpoint...");
+    const currentDomain = window.location.origin;
+    console.log("Current domain:", currentDomain);
+    
+    fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "Hello" }),
+    })
+    .then(response => {
+        console.log("Test response status:", response.status, response.statusText);
+        return response.json();
+    })
+    .then(data => {
+        console.log("Test response received:", data);
+    })
+    .catch(error => {
+        console.error("Test error:", error);
+    });
+}
 
 function initAboutSectionEffects() {
     const aboutSection = document.getElementById('about-section');
@@ -356,6 +384,9 @@ document.addEventListener('DOMContentLoaded', function() {
     initAboutSectionEffects();
     createParticleBackground();
     animateAboutText();
+    
+    // Test chat endpoint when page loads
+    setTimeout(testChatEndpoint, 2000); // Wait 2 seconds before testing
 });
 
 window.addEventListener('scroll', function() {
