@@ -41,11 +41,11 @@ SESSIONS = {}
 @app.route("/")
 def index():
     """Redirect to the main website page"""
-    return render_template("intro.html")
+    return render_template("Intro.html")
 
 @app.route("/ShruthinReddy")
 def website():
-    return render_template("intro.html")
+    return render_template("Intro.html")
 
 @app.route("/health")
 def health_check():
