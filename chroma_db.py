@@ -14,19 +14,15 @@ import google.generativeai as genai
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("chroma_db")
 
-# Get API key from environment variables
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY environment variable is not set")
 
-# Use a temporary directory for ChromaDB in cloud environments
 is_production = os.environ.get('RENDER', False) or os.environ.get('PRODUCTION', False)
 
-# For cloud environments, use a fresh temporary directory each time
 if is_production:
     DB_DIR = os.path.join(tempfile.gettempdir(), "chroma_db_" + str(hash(os.getpid())))
     
-    # Make sure any old directory is removed
     if os.path.exists(DB_DIR):
         try:
             shutil.rmtree(DB_DIR)
@@ -34,26 +30,24 @@ if is_production:
         except Exception as e:
             logger.error(f"Error removing old directory: {e}")
 else:
-    DB_DIR = "./fresh_chroma_db"  # Use a new directory to avoid schema issues
+    DB_DIR = "./fresh_chroma_db"  
 
 logger.info(f"Using ChromaDB directory: {DB_DIR}")
 COLLECTION_NAME = "my_collection"
 
-# Ensure the DB directory exists
 os.makedirs(DB_DIR, exist_ok=True)
 
-# Set up Gemini API only if API key is available
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-    logger.info("🔍 Gemini API configured successfully")
+    logger.info(" Gemini API configured successfully")
 else:
     logger.warning("GEMINI_API_KEY not set, embeddings will not work")
 
-# ✅ Define Gemini embedding function
+
 def gemini_embedding_function(texts):
     if not GEMINI_API_KEY:
         logger.warning("No API key - returning dummy embeddings")
-        return [[0.0] * 768 for _ in range(len(texts))]  # Just return dummy vectors
+        return [[0.0] * 768 for _ in range(len(texts))]  
         
     embeddings = []
     for text in texts:
@@ -69,7 +63,7 @@ def gemini_embedding_function(texts):
             embeddings.append([0.0]*768)  # fallback dummy vector
     return embeddings
 
-# ✅ Create a wrapper to match Langchain embedding_function interface
+
 class GeminiEmbeddings:
     def embed_documents(self, texts):
         return gemini_embedding_function(texts)
@@ -77,14 +71,13 @@ class GeminiEmbeddings:
     def embed_query(self, text):
         return gemini_embedding_function([text])[0]
 
-logger.info("✅ Gemini Embedding setup complete!")
+logger.info(" Gemini Embedding setup complete!")
 embedding_model = GeminiEmbeddings()
 
-# Global variable for the vector database
 vector_db = None
 
 def initialize_chromadb():
-    """Initialize ChromaDB and return a reference to it"""
+    """Initializing ChromaDB and return a reference to it"""
     global vector_db
     
     try:
@@ -95,29 +88,26 @@ def initialize_chromadb():
             embedding_function=embedding_model
         )
         logger.info(
-            "🟢 ChromaDB Initialized successfully in directory: %s", DB_DIR
+            " ChromaDB Initialized successfully in directory: %s", DB_DIR
         )
         
-        # Check if the collection exists and is empty
         docs = vector_db.get()
         doc_count = len(docs.get("ids", []))
         logger.info(f"ChromaDB contains {doc_count} documents")
         
-        # If empty, populate with documents
         if doc_count == 0:
             # Load documents from the Documents folder
             docs_loaded = store_documents_in_chromadb("./Documents", reset_db=False, use_chunking=False)
             if docs_loaded:
-                logger.info("✅ Documents loaded into ChromaDB")
+                logger.info(" Documents loaded into ChromaDB")
             else:
-                logger.error("❌ Failed to load documents")
+                logger.error(" Failed to load documents")
         
         return vector_db
         
     except Exception as e:
-        logger.error(f"❌ Error initializing ChromaDB: {e}")
-        
-        # Try deleting the directory and creating a new one
+        logger.error(f" Error initializing ChromaDB: {e}")
+
         try:
             if os.path.exists(DB_DIR):
                 shutil.rmtree(DB_DIR)
@@ -132,16 +122,14 @@ def initialize_chromadb():
                 embedding_function=embedding_model
             )
             
-            # Load documents immediately
             store_documents_in_chromadb("./Documents", reset_db=False, use_chunking=False)
-            logger.info("✅ ChromaDB re-initialized successfully after cleanup")
+            logger.info(" ChromaDB re-initialized successfully after cleanup")
             return vector_db
             
         except Exception as e2:
-            logger.error(f"❌ Error reinitializing ChromaDB: {e2}")
+            logger.error(f" Error reinitializing ChromaDB: {e2}")
             
-            # Final fallback - use in-memory database
-            logger.warning("⚠️ Using in-memory ChromaDB as fallback")
+            logger.warning(" Using in-memory ChromaDB as fallback")
             chroma_client = chromadb.EphemeralClient()
             vector_db = Chroma(
                 client=chroma_client,
@@ -149,7 +137,6 @@ def initialize_chromadb():
                 embedding_function=embedding_model
             )
             
-            # Try to load documents
             store_documents_in_chromadb("./Documents", reset_db=False, use_chunking=False)
             return vector_db
 
@@ -170,10 +157,8 @@ def read_pdf(file_path):
 def load_documents(main_folder):
     all_texts = []
     
-    # Check if the folder exists
     if not os.path.exists(main_folder):
         logger.warning(f"Documents folder '{main_folder}' does not exist")
-        # Try to find Documents folder in current directory or parent directories
         current_dir = os.getcwd()
         possible_paths = [
             os.path.join(current_dir, "Documents"),
@@ -236,7 +221,7 @@ def store_documents_in_chromadb(main_folder, reset_db=False, use_chunking=False)
     global vector_db
     
     if reset_db:
-        logger.info("🗑️ Resetting ChromaDB...")
+        logger.info(" Resetting ChromaDB...")
         try:
             if hasattr(vector_db.client, "delete_collection"):
                 vector_db.client.delete_collection(COLLECTION_NAME)
@@ -265,7 +250,7 @@ def store_documents_in_chromadb(main_folder, reset_db=False, use_chunking=False)
             for i, chunk in enumerate(chunks):
                 doc_id = hashlib.md5(chunk.encode()).hexdigest()
                 if doc_id in existing_ids:
-                    logger.warning(f"⚠️ Skipping duplicate chunk: {doc['source']} chunk {i}")
+                    logger.warning(f" Skipping duplicate chunk: {doc['source']} chunk {i}")
                     continue
                 new_texts.append(chunk)
                 new_metadatas.append({
@@ -276,7 +261,7 @@ def store_documents_in_chromadb(main_folder, reset_db=False, use_chunking=False)
         else:
             doc_id = hashlib.md5(doc["text"].encode()).hexdigest()
             if doc_id in existing_ids:
-                logger.warning(f"⚠️ Skipping duplicate doc {doc['source']}")
+                logger.warning(f" Skipping duplicate doc {doc['source']}")
                 continue
             new_texts.append(doc["text"])
             new_metadatas.append({
@@ -288,13 +273,13 @@ def store_documents_in_chromadb(main_folder, reset_db=False, use_chunking=False)
     if new_texts:
         try:
             vector_db.add_texts(texts=new_texts, metadatas=new_metadatas, ids=new_ids)
-            logger.info(f"✅ Stored {len(new_texts)} new documents.")
+            logger.info(f" Stored {len(new_texts)} new documents.")
             return True
         except Exception as e:
             logger.error(f"Error adding documents to ChromaDB: {e}")
             return False
     else:
-        logger.warning("⚠️ No new documents added.")
+        logger.warning(" No new documents added.")
         return False
 
 def list_chromadb_documents():
@@ -325,12 +310,10 @@ def query_chromadb(user_query, folder_category=None):
     logger.info(f"User Query: {user_query}, folder_category: {folder_category}")
 
     try:
-        # Clean and enhance the query
         cleaned_q = cleaning(user_query)
         extracted = extract_words(user_query)
         enhanced_q = cleaned_q + (" " + " ".join(extracted.keys()) if extracted else "")
 
-        # Check if the database has documents
         all_docs = vector_db.get()
         if not all_docs or not all_docs.get("ids", []):
             logger.warning("No documents in database")
@@ -341,13 +324,9 @@ def query_chromadb(user_query, folder_category=None):
             logger.warning("No documents in database to search")
             return []
             
-        # Increase search breadth - get more documents for more comprehensive results
-        k_docs = min(total_docs, 10)  # Get up to 10 documents for better coverage
-        
-        # First do a similarity search
+        k_docs = min(total_docs, 15) 
         all_results = vector_db.similarity_search_with_score(enhanced_q, k=k_docs)
         
-        # Convert to our standard format
         similarity_docs = [
             {"source": doc.metadata.get("source", "Unknown"), 
              "category": doc.metadata.get("category", "General"), 
@@ -355,7 +334,6 @@ def query_chromadb(user_query, folder_category=None):
             for doc, _ in all_results
         ]
         
-        # Now get all documents from the folder category if specified
         category_docs = []
         if folder_category:
             try:
@@ -385,7 +363,6 @@ def query_chromadb(user_query, folder_category=None):
         if any(keyword in user_query.lower() for keyword in important_keywords):
             logger.info(f"Important keyword detected in query: {user_query}")
             
-            # For important topics, get more documents from all categories
             try:
                 # Get all document IDs that aren't already in our results
                 existing_ids = set(doc.metadata.get("source", "") for doc, _ in all_results)
@@ -394,10 +371,9 @@ def query_chromadb(user_query, folder_category=None):
                 for doc in list_chromadb_documents():
                     if doc["source"] not in existing_ids:
                         additional_doc_ids.append(doc["id"])
-                
-                # Limit to a reasonable number
+
                 if additional_doc_ids:
-                    additional_doc_ids = additional_doc_ids[:20]  # Get up to 20 more docs
+                    additional_doc_ids = additional_doc_ids[:20] 
                     add_raw = vector_db.get(ids=additional_doc_ids)
                     
                     for idx, doc_id in enumerate(add_raw["ids"]):
@@ -411,7 +387,7 @@ def query_chromadb(user_query, folder_category=None):
             except Exception as e:
                 logger.error(f"Error retrieving additional documents: {e}")
         
-        # Combine all results and remove duplicates
+        # Combines all results and removes duplicates
         combined_docs = similarity_docs + category_docs + additional_docs
         return unify_docs(combined_docs)
         
@@ -439,11 +415,10 @@ def combine_docs_text(documents):
             deduped.append(line)
     return "\n".join(deduped)
 
-# Initialize the database
+
 vector_db = initialize_chromadb()
 
-# Automatically load documents when this module is imported
+
 if __name__ == "__main__":
-    # When run directly, reset the database and reload documents
     logger.info("Running ChromaDB setup script directly")
     store_documents_in_chromadb("./Documents", reset_db=True, use_chunking=False)
