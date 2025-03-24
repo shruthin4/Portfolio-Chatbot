@@ -5,8 +5,6 @@ import google.generativeai as genai
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
-
-# Add this near the top of your app.py file, after your imports
 import nltk
 try:
     nltk.download('punkt')
@@ -16,7 +14,6 @@ except Exception as e:
     logger.error(f"Error downloading NLTK data: {e}")
 
 print("Starting application...")
-# Get API key from environment variables
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logging.error("GEMINI_API_KEY environment variable is not set")
@@ -115,7 +112,7 @@ def list_docs():
 
 def get_session_id(request):
     """
-    Retrieve session_id from request (query param or JSON).
+    Retrieves session_id from request (query param or JSON).
     Fallback to "default_session" if none provided.
     """
     sid = request.args.get("session_id")
@@ -126,7 +123,7 @@ def get_session_id(request):
 
 
 def is_greeting(message):
-    """Return True if the user's message is just a greeting."""
+    """Returns True if the user's message is just a greeting."""
     message = message.lower().strip()
     greetings = ["hi", "hello", "hey", "greetings", "howdy", "hola"]
     return message in greetings
@@ -210,7 +207,6 @@ def chat():
         SESSIONS[session_id]["history"].append({"user": user_message, "bot": final_html})
         response = jsonify({"reply": final_html})
         
-        # Add explicit CORS headers
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         return response
@@ -223,7 +219,7 @@ def chat():
 
 
 def build_history_prompt(history):
-    """Keep short conversation context from last 2 turns."""
+    """Keeps short conversation context from last 2 turns."""
     lines = []
     for turn in history[-2:]:
         lines.append(f"User said: {turn['user']}\nBot said: {turn['bot']}\n")
@@ -232,7 +228,7 @@ def build_history_prompt(history):
 
 def retrieve_notes_response():
     try:
-        logger.info("📜 Notes request detected.")
+        logger.info(" Notes request detected.")
         stored = list_chromadb_documents()
         notes_files = [d["source"] for d in stored if d["category"].lower() == "notes"]
         if not notes_files:
