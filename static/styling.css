@@ -271,9 +271,7 @@ header h2 {
     transform: scale(1.05);
 }
 
-/* =========================
-   Chatbot Button with Matching Design
-========================= */
+
 #chatbot-btn {
     position: fixed;
     bottom: 20px;
