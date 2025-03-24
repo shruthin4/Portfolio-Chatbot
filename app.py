@@ -27,7 +27,7 @@ from chroma_db import (
 
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # Enhanced logging
 logging.basicConfig(
@@ -66,6 +66,31 @@ def health_check():
             "status": "error",
             "message": str(e)
         }), 500
+
+@app.route("/debug/api", methods=["POST", "GET"])
+def debug_api():
+    """Test API endpoint that doesn't use Gemini"""
+    try:
+        if request.method == "GET":
+            return jsonify({
+                "status": "API is online",
+                "api_key_configured": bool(os.getenv('GEMINI_API_KEY'))
+            })
+        
+        data = request.get_json() or {}
+        user_message = data.get("message", "").strip()
+        
+        # Simple response without using Gemini API
+        return jsonify({
+            "reply": f"<p>Debug response - you sent: {user_message}</p>",
+            "api_key_configured": bool(os.getenv('GEMINI_API_KEY')),
+            "documents_loaded": len(list_chromadb_documents())
+        })
+    except Exception as e:
+        return jsonify({
+            "reply": f"<p>Error: {str(e)}</p>",
+            "error": True
+        })
 
 @app.route("/list_docs", methods=["GET"])
 def list_docs():
@@ -114,7 +139,10 @@ def chat():
         data = request.get_json() or {}
         user_message = data.get("message", "").strip()
         if not user_message:
-            return jsonify({"reply": "Please enter a message."})
+            response = jsonify({"reply": "Please enter a message."})
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+            return response
 
         session_id = get_session_id(request)
         if session_id not in SESSIONS:
@@ -125,7 +153,10 @@ def chat():
         if is_greeting(user_message):
             bot_reply = "<p>Hello! How can I help you today?</p>"
             SESSIONS[session_id]["history"].append({"user": user_message, "bot": bot_reply})
-            return jsonify({"reply": bot_reply})
+            response = jsonify({"reply": bot_reply})
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+            return response
 
         if is_notes_request(user_message):
             notes_resp = retrieve_notes_response()
@@ -134,7 +165,10 @@ def chat():
                 "user": user_message,
                 "bot": resp_data["reply"]
             })
-            return notes_resp
+            response = notes_resp
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+            return response
 
         folder_cat = detect_folder_category(user_message)
 
@@ -144,23 +178,38 @@ def chat():
         if not docs:
             bot_reply = "<p>No relevant documents found about Shruthin.</p>"
             SESSIONS[session_id]["history"].append({"user": user_message, "bot": bot_reply})
-            return jsonify({"reply": bot_reply})
+            response = jsonify({"reply": bot_reply})
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+            return response
 
         merged_text = combine_docs_text(docs)
 
         conversation_history = build_history_prompt(SESSIONS[session_id]["history"])
-        if gemini_model:
-            final_html = generate_llm_response(user_message, merged_text, conversation_history)
-        else:
-            final_html = "<p>Unable to generate a response - API key not configured.</p>"
+        try:
+            if gemini_model:
+                final_html = generate_llm_response(user_message, merged_text, conversation_history)
+            else:
+                final_html = "<p>Unable to generate a response - API key not configured.</p>"
+        except Exception as e:
+            logger.error(f"Error generating response: {str(e)}")
+            final_html = f"<p>Sorry, I encountered an error while generating a response: {str(e)}</p>"
 
         final_html = cleanup_html(final_html)
 
         SESSIONS[session_id]["history"].append({"user": user_message, "bot": final_html})
-        return jsonify({"reply": final_html})
+        response = jsonify({"reply": final_html})
+        
+        # Add explicit CORS headers
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
-        return jsonify({"reply": f"<p>Sorry, an error occurred: {str(e)}</p>"}), 500
+        response = jsonify({"reply": f"<p>Sorry, an error occurred: {str(e)}</p>", "error": True})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
 
 
 def build_history_prompt(history):
