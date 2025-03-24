@@ -6,6 +6,8 @@ ENV TRANSFORMERS_NO_TORCH=1
 ENV PYTHONUNBUFFERED=1
 ENV RENDER=1
 
+ENV MALLOC_ARENA_MAX=2
+
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc python3-dev && \
@@ -26,4 +28,4 @@ ENV PORT=10000
 EXPOSE ${PORT}
 
 # Run application
-CMD gunicorn --workers=2 --threads=4 --timeout=120 --bind 0.0.0.0:${PORT} app:app
+CMD gunicorn --workers=1 --threads=2 --timeout=120 --bind 0.0.0.0:${PORT} app:app
