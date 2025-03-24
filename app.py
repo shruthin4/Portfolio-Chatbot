@@ -6,10 +6,17 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
 
+# Get API key from environment variables
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    logging.error("GEMINI_API_KEY environment variable is not set")
 
-genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
+# Configure Gemini API only if API key is available
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
+else:
+    gemini_model = None
 
 from chroma_db import (
     query_chromadb,
@@ -22,20 +29,53 @@ from chroma_db import (
 app = Flask(__name__)
 CORS(app)
 
-logging.basicConfig(level=logging.INFO)
+# Enhanced logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger("Flask_Backend")
 
 SESSIONS = {}
+
+@app.route("/")
+def index():
+    """Redirect to the main website page"""
+    return render_template("intro.html")
 
 @app.route("/ShruthinReddy")
 def website():
     return render_template("intro.html")
 
+@app.route("/health")
+def health_check():
+    """Simple health check endpoint"""
+    try:
+        # Try to access ChromaDB
+        docs = list_chromadb_documents()
+        gemini_available = gemini_model is not None
+        return jsonify({
+            "status": "ok",
+            "database": "connected" if docs is not None else "error",
+            "gemini_api": "available" if gemini_available else "missing",
+            "documents_count": len(docs) if docs is not None else 0
+        })
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 @app.route("/list_docs", methods=["GET"])
 def list_docs():
     """Lists all stored documents, including notes, links, images, etc."""
-    stored_docs = list_chromadb_documents()
-    return jsonify({"stored_documents": stored_docs})
+    try:
+        stored_docs = list_chromadb_documents()
+        return jsonify({"stored_documents": stored_docs})
+    except Exception as e:
+        logger.error(f"Error listing documents: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 def get_session_id(request):
@@ -51,7 +91,7 @@ def get_session_id(request):
 
 
 def is_greeting(message):
-    """Return True if the user’s message is just a greeting."""
+    """Return True if the user's message is just a greeting."""
     message = message.lower().strip()
     greetings = ["hi", "hello", "hey", "greetings", "howdy", "hola"]
     return message in greetings
@@ -70,50 +110,57 @@ def is_notes_request(message):
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    data = request.get_json() or {}
-    user_message = data.get("message", "").strip()
-    if not user_message:
-        return jsonify({"reply": "Please enter a message."})
+    try:
+        data = request.get_json() or {}
+        user_message = data.get("message", "").strip()
+        if not user_message:
+            return jsonify({"reply": "Please enter a message."})
 
-    session_id = get_session_id(request)
-    if session_id not in SESSIONS:
-        SESSIONS[session_id] = {"history": []}
+        session_id = get_session_id(request)
+        if session_id not in SESSIONS:
+            SESSIONS[session_id] = {"history": []}
 
-    logger.info(f"[Session {session_id}] User: {user_message}")
+        logger.info(f"[Session {session_id}] User: {user_message}")
 
-    if is_greeting(user_message):
-        bot_reply = "<p>Hello! How can I help you today?</p>"
-        SESSIONS[session_id]["history"].append({"user": user_message, "bot": bot_reply})
-        return jsonify({"reply": bot_reply})
+        if is_greeting(user_message):
+            bot_reply = "<p>Hello! How can I help you today?</p>"
+            SESSIONS[session_id]["history"].append({"user": user_message, "bot": bot_reply})
+            return jsonify({"reply": bot_reply})
 
-    if is_notes_request(user_message):
-        notes_resp = retrieve_notes_response()
-        resp_data = notes_resp.get_json()  
-        SESSIONS[session_id]["history"].append({
-            "user": user_message,
-            "bot": resp_data["reply"]
-        })
-        return notes_resp
+        if is_notes_request(user_message):
+            notes_resp = retrieve_notes_response()
+            resp_data = notes_resp.get_json()  
+            SESSIONS[session_id]["history"].append({
+                "user": user_message,
+                "bot": resp_data["reply"]
+            })
+            return notes_resp
 
-    folder_cat = detect_folder_category(user_message)
+        folder_cat = detect_folder_category(user_message)
 
-    docs = query_chromadb(user_message, folder_category=folder_cat)
-    logger.info(f"[Session {session_id}] Retrieved {len(docs)} docs.")
+        docs = query_chromadb(user_message, folder_category=folder_cat)
+        logger.info(f"[Session {session_id}] Retrieved {len(docs)} docs.")
 
-    if not docs:
-        bot_reply = "<p>No relevant documents found about Shruthin.</p>"
-        SESSIONS[session_id]["history"].append({"user": user_message, "bot": bot_reply})
-        return jsonify({"reply": bot_reply})
+        if not docs:
+            bot_reply = "<p>No relevant documents found about Shruthin.</p>"
+            SESSIONS[session_id]["history"].append({"user": user_message, "bot": bot_reply})
+            return jsonify({"reply": bot_reply})
 
-    merged_text = combine_docs_text(docs)
+        merged_text = combine_docs_text(docs)
 
-    conversation_history = build_history_prompt(SESSIONS[session_id]["history"])
-    final_html = generate_llm_response(user_message, merged_text, conversation_history)
+        conversation_history = build_history_prompt(SESSIONS[session_id]["history"])
+        if gemini_model:
+            final_html = generate_llm_response(user_message, merged_text, conversation_history)
+        else:
+            final_html = "<p>Unable to generate a response - API key not configured.</p>"
 
-    final_html = cleanup_html(final_html)
+        final_html = cleanup_html(final_html)
 
-    SESSIONS[session_id]["history"].append({"user": user_message, "bot": final_html})
-    return jsonify({"reply": final_html})
+        SESSIONS[session_id]["history"].append({"user": user_message, "bot": final_html})
+        return jsonify({"reply": final_html})
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {str(e)}")
+        return jsonify({"reply": f"<p>Sorry, an error occurred: {str(e)}</p>"}), 500
 
 
 def build_history_prompt(history):
@@ -125,23 +172,28 @@ def build_history_prompt(history):
 
 
 def retrieve_notes_response():
+    try:
+        logger.info("📜 Notes request detected.")
+        stored = list_chromadb_documents()
+        notes_files = [d["source"] for d in stored if d["category"].lower() == "notes"]
+        if not notes_files:
+            return jsonify({"reply": "<p>No notes or cheat sheets available from Shruthin.</p>"})
 
-    logger.info("📜 Notes request detected.")
-    stored = list_chromadb_documents()
-    notes_files = [d["source"] for d in stored if d["category"].lower() == "notes"]
-    if not notes_files:
-        return jsonify({"reply": "<p>No notes or cheat sheets available from Shruthin.</p>"})
+        response_text = "<h2>Available Notes & Cheat Sheets</h2><ul>"
+        for note in notes_files:
+            display_name = os.path.splitext(note)[0].replace("_", " ").replace("-", " ")
+            response_text += f"<li><strong>{display_name}</strong></li>"
+        response_text += "</ul><p>Which notes would you like to see in detail?</p>"
 
-    response_text = "<h2>Available Notes & Cheat Sheets</h2><ul>"
-    for note in notes_files:
-        display_name = os.path.splitext(note)[0].replace("_", " ").replace("-", " ")
-        response_text += f"<li><strong>{display_name}</strong></li>"
-    response_text += "</ul><p>Which notes would you like to see in detail?</p>"
-
-    return jsonify({"reply": response_text})
+        return jsonify({"reply": response_text})
+    except Exception as e:
+        logger.error(f"Error retrieving notes: {str(e)}")
+        return jsonify({"reply": f"<p>Error retrieving notes: {str(e)}</p>"}), 500
 
 
 def generate_llm_response(user_message, structured_content, conversation_history=""):
+    if not gemini_model:
+        return "<p>Gemini API not configured - please set GEMINI_API_KEY environment variable.</p>"
 
     prompt = f"""
 Here is our short conversation so far:
@@ -216,10 +268,6 @@ LINK FORMATTING INSTRUCTIONS:
 4. NEVER use <a> tags for links, only plain text URLs
 5. For verification links, format as "Verification: https://example.com" (plain text only)
 
-
-
-
-
 The user's query: "{user_message}"
 
 Here are the relevant doc excerpts:
@@ -233,7 +281,7 @@ Format response with proper HTML (headers, paragraphs, code blocks). Remember to
         return response.text if hasattr(response, "text") else "No response."
     except Exception as e:
         logger.error(f"Gemini error: {e}")
-        return "<p>Sorry, I'm unable to process your request right now. Please try again later.</p>"
+        return f"<p>Sorry, I'm unable to process your request right now. Error: {str(e)}</p>"
 
 
 
@@ -295,20 +343,6 @@ def cleanup_html(text):
     return text
 
 
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-
-
-
-
-
-
-
-
-
-
-
-
-
