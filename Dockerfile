@@ -4,17 +4,28 @@ WORKDIR /app
 
 # Add environment variable to prevent torch auto-installation if triggered by transformers
 ENV TRANSFORMERS_NO_TORCH=1
+ENV PYTHONUNBUFFERED=1
+ENV RENDER=1
 
-RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc python3-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY requirements-prod.txt .
+# Copy requirements first to take advantage of Docker caching
+COPY requirements.txt .
 
-RUN pip install --upgrade pip && pip install -r requirements-prod.txt --no-cache-dir
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    python -m spacy download en_core_web_sm
 
-RUN python -m spacy download en_core_web_sm
-
+# Copy the application code
 COPY . .
 
-EXPOSE 8080
+# Use PORT environment variable with fallback to 10000
+ENV PORT=10000
+EXPOSE ${PORT}
 
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "app:app"]
+# Run the application
+CMD gunicorn --workers=2 --threads=4 --timeout=120 --bind 0.0.0.0:${PORT} app:app
