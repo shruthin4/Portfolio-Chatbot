@@ -5,7 +5,7 @@ import google.generativeai as genai
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
-
+print("Starting application...")
 # Get API key from environment variables
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
