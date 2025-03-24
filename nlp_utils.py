@@ -21,14 +21,34 @@ except Exception as e:
     nlp = None
 
 def cleaning(user_text):
-    user_text = user_text.lower()
-    user_text = re.sub(r"[^a-zA-Z\s]", "", user_text)
-    tokens = word_tokenize(user_text)
-    stop_words = set(stopwords.words("english"))
-    tokens = [w for w in tokens if w not in stop_words]
-    lemmatizer = WordNetLemmatizer()
-    tokens = [lemmatizer.lemmatize(w) for w in tokens]
-    return " ".join(tokens)
+    try:
+        user_text = user_text.lower()
+        user_text = re.sub(r"[^a-zA-Z\s]", "", user_text)
+        
+        try:
+            tokens = word_tokenize(user_text)
+        except:
+            # Fallback if tokenization fails
+            tokens = user_text.split()
+            
+        try:
+            stop_words = set(stopwords.words("english"))
+            tokens = [w for w in tokens if w not in stop_words]
+        except:
+            # Fallback if stopwords fails
+            tokens = [w for w in tokens if len(w) > 2]
+            
+        try:
+            lemmatizer = WordNetLemmatizer()
+            tokens = [lemmatizer.lemmatize(w) for w in tokens]
+        except:
+            # No lemmatization fallback
+            pass
+            
+        return " ".join(tokens)
+    except Exception as e:
+        print(f"Error in cleaning text: {e}")
+        return user_text  # Return original text as fallback
 
 def extract_words(user_text):
     if nlp is None:
