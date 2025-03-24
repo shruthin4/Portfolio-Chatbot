@@ -11,6 +11,8 @@ COPY requirements-prod.txt .
 
 RUN pip install --upgrade pip && pip install -r requirements-prod.txt --no-cache-dir
 
+RUN python -m spacy download en_core_web_sm
+
 COPY . .
 
 EXPOSE 8080
