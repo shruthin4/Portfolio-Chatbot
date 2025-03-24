@@ -6,7 +6,6 @@ __pycache__/
 *.log
 *.ipynb
 .env
-*.pdf
 .vscode/
 .git/
 *.md
