@@ -5,6 +5,16 @@ import google.generativeai as genai
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
+
+# Add this near the top of your app.py file, after your imports
+import nltk
+try:
+    nltk.download('punkt')
+    nltk.download('wordnet')
+    nltk.download('stopwords')
+except Exception as e:
+    logger.error(f"Error downloading NLTK data: {e}")
+
 print("Starting application...")
 # Get API key from environment variables
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
