@@ -17,5 +17,4 @@ __pycache__/
 transformers_cache/
 datasets/
 llm_integration.py
-Dockerfile
 chroma_db/
