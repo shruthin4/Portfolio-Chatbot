@@ -1,7 +1,5 @@
 # AI-Powered Interactive Resume Chatbot
 
-![Project Banner](./static/Images/project-banner.png)
-
 ## 🤖 Overview
 
 A conversational AI assistant that transforms my traditional resume into an interactive experience. Visitors can ask questions about my skills, experiences, projects, and qualifications through natural conversation, receiving personalized responses based on my actual documents and credentials.
@@ -34,7 +32,6 @@ What makes this chatbot unique is that it also provides access to my personal no
 
 ## 🏗️ Architecture
 
-![Architecture Diagram](./static/Images/architecture-diagram.png)
 
 1. **Document Processing Pipeline**:
    - Resume, projects, certifications, and other documents are processed and embedded
