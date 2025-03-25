@@ -4,7 +4,7 @@
 
 A conversational AI assistant that transforms my traditional resume into an interactive experience. Visitors can ask questions about my skills, experiences, projects, and qualifications through natural conversation, receiving personalized responses based on my actual documents and credentials.
 
-What makes this chatbot unique is that it also provides access to my personal notes and cheat sheets, allowing visitors to benefit from my learning journey and knowledge collection.
+What makes this chatbot unique is that it also provides access to my personal notes and cheat sheets from various technical domains, allowing visitors to benefit from my learning journey and knowledge collection.
 
 🔗 [Live Demo](https://shruthin-portfolio.onrender.com/)
 
@@ -25,31 +25,31 @@ What makes this chatbot unique is that it also provides access to my personal no
 - **Backend**: Flask (Python)
 - **Database**: ChromaDB (Vector Database)
 - **AI/ML**:
-  - Google Gemini API for natural language generation
-  - Semantic embeddings for document retrieval
+  - Google Gemini API for both text generation and embeddings
   - NLTK and spaCy for text processing
+  - Custom prompt engineering for persona-based responses
 - **Deployment**: Docker, Render Cloud
 
 ## 🏗️ Architecture
 
-
 1. **Document Processing Pipeline**:
    - Resume, projects, certifications, and other documents are processed and embedded
    - Technical notes and cheat sheets are categorized and embedded
-   - Text chunks are stored with metadata in ChromaDB
-   - Vector embeddings enable semantic similarity search
+   - Google Gemini API creates semantic embeddings for all documents
+   - Text chunks and embeddings are stored with metadata in ChromaDB
 
 2. **Query Processing Flow**:
    - User messages are processed using NLP techniques
-   - Query vectors are compared with document vectors
-   - Most relevant document chunks are retrieved
+   - Queries are converted to embeddings using the same Gemini API
+   - ChromaDB compares query embeddings with document embeddings
+   - Most relevant document chunks are retrieved based on similarity
    - Context-aware responses are generated using Gemini API
 
 ## 🚀 How It Works
 
-1. **Embeddings Creation**: Documents are split into manageable chunks and transformed into vector embeddings.
+1. **Embeddings Creation**: Documents are split into manageable chunks and transformed into vector embeddings using Gemini API.
 2. **User Interaction**: Visitors ask questions through a chat interface.
-3. **Semantic Search**: The system finds the most contextually relevant information from my documents.
+3. **Semantic Search**: The system finds the most contextually relevant information from my documents using embedding similarity.
 4. **Response Generation**: The AI generates personalized, conversational responses using the retrieved information.
 5. **Dynamic UI**: The chat interface updates in real-time with typing animations and smooth scrolling.
 
@@ -58,7 +58,7 @@ What makes this chatbot unique is that it also provides access to my personal no
 ### Prerequisites
 
 - Python 3.10+
-- Google Gemini API key
+- Google Gemini API key (used for both text generation and embeddings)
 
 ### Setup
 
@@ -127,7 +127,21 @@ docker run -p 10000:10000 -e GEMINI_API_KEY=your_api_key resume-chatbot
 ## 📚 Technical Implementation Details
 
 ### Vector Search
-The application uses ChromaDB to store and retrieve document embeddings. This enables semantic search based on meaning rather than just keywords.
+The application uses Google Gemini API to generate embeddings and ChromaDB to store and retrieve them. This enables semantic search based on meaning rather than just keywords.
+
+```python
+# Example: Generating embeddings with Gemini API
+def gemini_embedding_function(texts):
+    embeddings = []
+    for text in texts:
+        response = genai.embed_content(
+            model="models/text-embedding-004",
+            content=text,
+            task_type="retrieval_document"
+        )
+        embeddings.append(response["embedding"])
+    return embeddings
+```
 
 ```python
 # Example: Retrieving relevant documents
