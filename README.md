@@ -182,6 +182,3 @@ Robust error handling ensures the chatbot degrades gracefully when issues occur:
 - [GitHub](https://github.com/shruthin4)
 - [Email](mailto:shruthinreddysainapuram@gmail.com)
 
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
