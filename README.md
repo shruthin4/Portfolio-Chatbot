@@ -32,7 +32,7 @@ What makes this chatbot unique is that it also provides access to my personal no
 
 The chatbot leverages a Retrieval-Augmented Generation (RAG) architecture consisting of the following components:
 
-![Architecture Diagram](./static/Images/architecture-diagram.png)
+![Architecture Diagram](./static/Images/architecture.png)
 
 The system consists of four main components:
 
