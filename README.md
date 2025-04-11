@@ -1,6 +1,4 @@
-# AI-Powered Interactive Resume Chatbot
-
-## 🤖 Overview
+# AI-Powered Resume Chatbot
 
 A conversational AI assistant that transforms my traditional resume into an interactive experience. Visitors can ask questions about my skills, experiences, projects, and qualifications through natural conversation, receiving personalized responses based on my actual documents and credentials.
 
@@ -8,7 +6,7 @@ What makes this chatbot unique is that it also provides access to my personal no
 
 🔗 [Live Demo](https://shruthin-portfolio.onrender.com/)
 
-![Chatbot Demo](./static/Images/chatbot-demo.gif)
+> **Note:** Please allow 1-2 minutes for initial loading as the application is deployed on a free-tier service to minimize costs. Once loaded, the chatbot responds quickly with relevant information.
 
 ## ✨ Key Features
 
@@ -32,18 +30,40 @@ What makes this chatbot unique is that it also provides access to my personal no
 
 ## 🏗️ Architecture
 
-1. **Document Processing Pipeline**:
-   - Resume, projects, certifications, and other documents are processed and embedded
-   - Technical notes and cheat sheets are categorized and embedded
-   - Google Gemini API creates semantic embeddings for all documents
-   - Text chunks and embeddings are stored with metadata in ChromaDB
+The chatbot leverages a Retrieval-Augmented Generation (RAG) architecture consisting of the following components:
 
-2. **Query Processing Flow**:
-   - User messages are processed using NLP techniques
-   - Queries are converted to embeddings using the same Gemini API
-   - ChromaDB compares query embeddings with document embeddings
-   - Most relevant document chunks are retrieved based on similarity
-   - Context-aware responses are generated using Gemini API
+![Architecture Diagram](./static/Images/architecture-diagram.png)
+
+The system consists of four main components:
+
+1. **Frontend (HTML/CSS/JS)**: User interface for interacting with the chatbot
+2. **Backend (Flask)**: Processes requests, manages sessions, and coordinates between components
+3. **Vector Database (ChromaDB)**: Stores document embeddings for semantic search
+4. **LLM (Google Gemini API)**: Generates natural language responses
+
+Documents (resume, projects, certifications, and notes) are processed and stored in the vector database, which provides relevant information to the backend for query processing and to the LLM for response generation.s
+
+### Document Processing Pipeline:
+
+1. Resume, projects, certifications, and other documents are processed and embedded
+2. Technical notes and cheat sheets are categorized and embedded
+3. Google Gemini API creates semantic embeddings for all documents
+4. Text chunks and embeddings are stored with metadata in ChromaDB
+
+### Query Processing Flow:
+
+1. User messages are processed using NLP techniques
+2. Queries are converted to embeddings using the same Gemini API
+3. ChromaDB compares query embeddings with document embeddings
+4. Most relevant document chunks are retrieved based on similarity
+5. Context-aware responses are generated using Gemini API
+
+### System Components:
+
+- **User Interface Layer**: A Flask-based web application that handles user queries and renders HTML responses
+- **Vector Database Component**: ChromaDB stores document text, metadata (source, category), and vector embeddings
+- **NLP Processing**: Text cleaning, entity extraction, and category detection
+- **LLM Integration**: Google Gemini model handles text generation with custom prompt engineering
 
 ## 🚀 How It Works
 
@@ -56,42 +76,40 @@ What makes this chatbot unique is that it also provides access to my personal no
 ## 💻 Local Development
 
 ### Prerequisites
-
 - Python 3.10+
 - Google Gemini API key (used for both text generation and embeddings)
 
 ### Setup
-
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/shruthin4/shruthin-portfolio.git
-   cd shruthin-portfolio
-   ```
+```bash
+git clone https://github.com/yourusername/resume-chatbot.git
+cd resume-chatbot
+```
 
 2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
 3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   python -m nltk.downloader punkt wordnet stopwords
-   python -m spacy download en_core_web_sm
-   ```
+```bash
+pip install -r requirements.txt
+python -m nltk.downloader punkt wordnet stopwords
+python -m spacy download en_core_web_sm
+```
 
 4. Set up environment variables:
-   ```bash
-   export GEMINI_API_KEY=your_api_key  # Windows: set GEMINI_API_KEY=your_api_key
-   ```
+```bash
+export GEMINI_API_KEY=your_api_key  # Windows: set GEMINI_API_KEY=your_api_key
+```
 
 5. Run the application:
-   ```bash
-   python app.py
-   ```
+```bash
+python app.py
+```
 
-6. Visit `http://localhost:5000` in your browser
+6. Visit http://localhost:5000 in your browser
 
 ## 🐳 Docker Deployment
 
@@ -100,7 +118,7 @@ What makes this chatbot unique is that it also provides access to my personal no
 docker build -t resume-chatbot .
 
 # Run the container
-docker run -p 10000:10000 -e GEMINI_API_KEY=your_api_key resume-chatbot
+docker run -p 5000:5000 -e GEMINI_API_KEY=your_api_key resume-chatbot
 ```
 
 ## 📂 Project Structure
@@ -141,9 +159,7 @@ def gemini_embedding_function(texts):
         )
         embeddings.append(response["embedding"])
     return embeddings
-```
 
-```python
 # Example: Retrieving relevant documents
 docs = query_chromadb(user_message, folder_category=folder_cat)
 merged_text = combine_docs_text(docs)
@@ -157,14 +173,19 @@ The Google Gemini API is used with custom prompt engineering to generate natural
 final_html = generate_llm_response(user_message, merged_text, conversation_history)
 ```
 
-### Error Handling
-Robust error handling ensures the chatbot degrades gracefully when issues occur:
+### NLP Processing
+The system uses NLTK and spaCy for text cleaning, entity extraction, and enhanced query understanding.
 
-```javascript
-.catch(error => {
-    console.error("Error:", error);
-    messageContent.textContent = "Sorry, I couldn't process your request. Please try again.";
-});
+```python
+def cleaning(user_text):
+    user_text = user_text.lower()
+    user_text = re.sub(r"[^a-zA-Z\s]", "", user_text)
+    tokens = word_tokenize(user_text)
+    stop_words = set(stopwords.words("english"))
+    tokens = [w for w in tokens if w not in stop_words]
+    lemmatizer = WordNetLemmatizer()
+    tokens = [lemmatizer.lemmatize(w) for w in tokens]
+    return " ".join(tokens)
 ```
 
 ## 🔍 Future Enhancements
@@ -176,9 +197,16 @@ Robust error handling ensures the chatbot degrades gracefully when issues occur:
 - Enhanced mobile experience with PWA capabilities
 - Expanded collection of technical notes and cheat sheets
 
-## 📫 Connect With Me
+## 🤝 Contributing
 
-- [LinkedIn](https://www.linkedin.com/in/shruthin-reddy-sainapuram/)
-- [GitHub](https://github.com/shruthin4)
-- [Email](mailto:shruthinreddysainapuram@gmail.com)
+Contributions are welcome! Please feel free to submit a Pull Request.
 
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+Feel free to reach out if you have any questions or would like to learn more about this project!
+
+- LinkedIn: [shruthinreddy](https://www.linkedin.com/in/shruthinreddy/)
+- Email: shruthinreddysainapuram@gmail.com
+- GitHub: [@shruthin4](https://github.com/shruthin4)
